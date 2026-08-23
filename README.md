@@ -13,7 +13,7 @@ touches. `prefix+m` switches between the two.
 
 ![Simple Prompts showing an English Codex conversation](assets/simple-prompts.png)
 
-Version 0.1 has been tested with these agent versions on macOS and Linux:
+These agent versions have been tested on macOS and Linux:
 
 | Agent | Tested versions |
 |---|---|
@@ -123,6 +123,7 @@ herdr plugin link .
   publishing.
 - [Troubleshooting](docs/troubleshooting.md) - unavailable sessions, the hotkey,
   images, uninstall.
+- [Changelog](docs/changelog.md) - what changed in each version.
 - [AGENTS.md](AGENTS.md) - working agreements for coding agents in this repo.
 
 ## License
