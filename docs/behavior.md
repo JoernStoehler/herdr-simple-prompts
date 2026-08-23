@@ -73,10 +73,12 @@ records appended to the same native transcript.
   only while the composer has no text for a cursor to move through. Returning to
   the bottom resumes live bottom-following.
 - A history taller than the viewport draws a scroll thumb in the right gutter
-  column, skipping the rows a prompt band fills so the bands still reach both
-  terminal edges. A history that fits leaves both gutters untouched. While the
-  view is away from the bottom the footer leads with the number of rows below it
-  and the key that returns.
+  column. Only the glyph and its color are set, so a prompt band keeps its
+  background and still reaches both terminal edges, and prompt text wraps one
+  column short of the band so no prompt ever runs under the thumb. A history
+  that fits leaves both gutters untouched. While the view is away from the
+  bottom the footer leads with the number of rows below it and the key that
+  returns.
 - Mouse capture is deliberately off, so dragging across text uses Herdr's native
   selection and automatic copy, and OSC 8 links stay clickable.
 
@@ -118,6 +120,7 @@ their legacy style offsets cannot describe the new projection safely.
 | `PageUp` / `PageDown` | Scroll the conversation history by a page |
 | `Shift+Up` / `Shift+Down` | Scroll one row regardless of the composer |
 | `Shift+Home` / `Shift+End` | Jump to the oldest turn or the newest |
+| `Shift+Alt+Up` / `Shift+Alt+Down` | The same two ends for keyboards without `Home` |
 
 Pastes below 1,000 characters stay directly editable. A paste of 1,000
 characters or more appears as one atomic `[Pasted Content · N chars]` token in

@@ -67,14 +67,18 @@ No binary is published: Herdr clones this source and builds it locally with
 | `PageUp` / `PageDown` | Scroll the history by a page |
 | `Shift+↑` / `Shift+↓` | Scroll a row, draft in the composer or not |
 | `Shift+Home` / `Shift+End` | Jump to the oldest turn, or back to the latest |
+| `Shift+Alt+↑` / `Shift+Alt+↓` | The same two ends, without a `Home` key |
 
 - Prompts you type while the agent is working are queued by the agent and show
   up here where they were queued.
-- A history taller than the pane shows a thumb in the right-hand gutter. While
-  the view sits away from the newest answer the footer says how far back it is
-  and which key returns. The wheel scrolls too where the terminal turns it into
-  arrow keys, but only while the composer is empty - the shift keys above always
-  work.
+- A history taller than the pane shows a thumb in the right-hand column, over
+  prompt bands as well as answers; prompt text wraps one column earlier so it
+  never runs under it. While the view sits away from the newest answer the
+  footer says how far back it is and which key returns. The wheel scrolls too
+  where the terminal turns it into arrow keys, but only while the composer is
+  empty - the shift keys above always work.
+- On a MacBook `Home` and `End` are `fn+←` and `fn+→`, so the jumps are
+  `fn+Shift+←` and `fn+Shift+→`, or `Shift+Alt+↑` and `Shift+Alt+↓`.
 - A paste of 1,000+ characters collapses into one `[Pasted Content · N chars]`
   token; the agent still receives the complete text.
 - Images appear as `[Image #N]` placeholders - the view never renders pixels.

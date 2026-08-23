@@ -399,11 +399,11 @@ fn render_prompt_edge_fills(
 
 /// The scroll thumb, drawn in the outer gutter column.
 ///
-/// The history keeps its full content width: only the glyph and its color are
-/// set, and never on a row a prompt band fills, so the bands still reach both
-/// terminal edges. It appears only when there is something outside the view to
-/// reach — a history that fits says so by showing nothing, and the gutters of
-/// an unscrollable view stay empty.
+/// Only the glyph and its color are set, so a prompt band keeps its background
+/// underneath and still reaches both terminal edges; prompt text wraps one
+/// column earlier so nothing of the conversation is ever hidden by the thumb.
+/// It appears only when there is something outside the view to reach — a
+/// history that fits says so by showing nothing, and leaves both gutters empty.
 fn render_history_scrollbar(
     frame: &mut Frame<'_>,
     frame_area: Rect,
@@ -422,8 +422,8 @@ fn render_history_scrollbar(
     let top = rows_above * travel / scrollable_rows;
     let x = frame_area.right() - 1;
     for offset in 0..track {
-        if rows.get(offset).is_none_or(|row| row.fill.is_some()) {
-            continue;
+        if rows.get(offset).is_none() {
+            break;
         }
         let Some(y) = history_area
             .y
@@ -434,7 +434,7 @@ fn render_history_scrollbar(
         };
         let on_thumb = offset >= top && offset < top + thumb;
         let cell = &mut frame.buffer_mut()[(x, y)];
-        cell.set_symbol(if on_thumb { "█" } else { "│" });
+        cell.set_symbol(if on_thumb { "▐" } else { "│" });
         cell.set_fg(if on_thumb {
             Color::Gray
         } else {

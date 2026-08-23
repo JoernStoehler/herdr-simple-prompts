@@ -745,11 +745,19 @@ enum HistoryScroll {
 /// its cursor — a draft must never take reading away, so the same movements
 /// answer to shift as well, and `PageUp`/`PageDown` move by the view rather
 /// than by a fixed count.
+///
+/// The ends of the history are spelled twice. `Shift+Home` and `Shift+End` are
+/// the names a full keyboard has; a laptop without those keys reaches the same
+/// two places with shift and alt on the arrows, which no board has to press a
+/// function key for.
 fn history_scroll_key(key: KeyEvent) -> Option<HistoryScroll> {
     let shift = key.modifiers.contains(KeyModifiers::SHIFT);
+    let alt = key.modifiers.contains(KeyModifiers::ALT);
     match key.code {
         KeyCode::PageUp => Some(HistoryScroll::PageUp),
         KeyCode::PageDown => Some(HistoryScroll::PageDown),
+        KeyCode::Up if shift && alt => Some(HistoryScroll::Oldest),
+        KeyCode::Down if shift && alt => Some(HistoryScroll::Latest),
         KeyCode::Up if shift => Some(HistoryScroll::RowUp),
         KeyCode::Down if shift => Some(HistoryScroll::RowDown),
         KeyCode::Home if shift => Some(HistoryScroll::Oldest),
@@ -2375,6 +2383,23 @@ mod tests {
 
         press(
             KeyEvent::new(KeyCode::End, KeyModifiers::SHIFT),
+            &mut app,
+            &mut editor,
+            &mut cache,
+        );
+        assert_eq!(app.scroll_from_bottom, 0);
+
+        // The same two ends, spelled for a keyboard without home and end.
+        press(
+            KeyEvent::new(KeyCode::Up, KeyModifiers::SHIFT | KeyModifiers::ALT),
+            &mut app,
+            &mut editor,
+            &mut cache,
+        );
+        assert_eq!(app.scroll_from_bottom, cache.maximum_offset());
+
+        press(
+            KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT | KeyModifiers::ALT),
             &mut app,
             &mut editor,
             &mut cache,

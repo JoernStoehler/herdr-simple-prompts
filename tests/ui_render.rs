@@ -51,9 +51,16 @@ fn assert_clear_cell(buffer: &Buffer, x: u16, y: u16) {
     );
 }
 
+/// A prompt band has to reach the edge. The scroll indicator is allowed to sit
+/// on top of it - it keeps the band's background and prompt text never runs
+/// under it - so the glyph is the thumb or the track, or nothing at all.
 fn assert_prompt_fill_cell(buffer: &Buffer, x: u16, y: u16) {
     let cell = &buffer[(x, y)];
-    assert_eq!(cell.symbol(), " ", "prompt edge is not blank at ({x}, {y})");
+    assert!(
+        matches!(cell.symbol(), " " | "│" | "▐"),
+        "prompt edge carries text at ({x}, {y}): {:?}",
+        cell.symbol()
+    );
     assert_eq!(
         cell.style().bg,
         Some(Color::Rgb(52, 53, 54)),
@@ -87,8 +94,13 @@ fn ordinary_view_uses_one_clear_cell_on_both_horizontal_edges() {
         assert_clear_cell(&buffer, 15, y);
     }
     assert_eq!(buffer[(1, 1)].symbol(), "a");
-    assert_eq!(buffer[(14, 1)].symbol(), "n");
-    assert_eq!(buffer[(1, 2)].symbol(), "o");
+    assert_eq!(buffer[(13, 1)].symbol(), "m");
+    assert_eq!(
+        buffer[(14, 1)].symbol(),
+        " ",
+        "the scroll column stays free of prompt text"
+    );
+    assert_eq!(buffer[(1, 2)].symbol(), "n");
     assert_eq!(cursor.0, 1);
 }
 
@@ -580,7 +592,7 @@ fn a_scrollable_history_shows_a_thumb_and_names_the_way_back() {
     let following = rendered_buffer(&app, width, height);
     let bar = gutter_column(&following, width, 0..height - 4);
     assert!(
-        bar.contains('█'),
+        bar.contains('▐'),
         "a scrollable history must show a thumb: {bar:?}"
     );
     assert!(
@@ -696,7 +708,7 @@ fn sticky_prompt_background_reaches_both_terminal_edges() {
 }
 
 #[test]
-fn wrapped_prompt_uses_the_full_width_without_a_role_indent() {
+fn wrapped_prompt_fills_the_band_less_the_scroll_column_without_a_role_indent() {
     let mut app = AppState::default();
     app.apply(AppEvent::NativeUser(Message::text(
         "u1",
@@ -706,8 +718,8 @@ fn wrapped_prompt_uses_the_full_width_without_a_role_indent() {
 
     let document = HistoryDocument::from_app(&app, 14);
     assert_eq!(document.rows[0].plain_text(), "");
-    assert_eq!(document.rows[1].plain_text(), "abcdefghijklmn");
-    assert_eq!(document.rows[2].plain_text(), "opqrst");
+    assert_eq!(document.rows[1].plain_text(), "abcdefghijklm");
+    assert_eq!(document.rows[2].plain_text(), "nopqrst");
     assert_eq!(document.rows[3].plain_text(), "");
 }
 

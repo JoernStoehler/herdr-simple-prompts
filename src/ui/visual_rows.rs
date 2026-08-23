@@ -191,7 +191,7 @@ fn turn_block(
         prompt_lines.push(StyledText::default());
     }
     for line in &prompt_lines {
-        push_styled_rows(&mut rows, line, prompt_fill(), width);
+        push_styled_rows(&mut rows, line, prompt_fill(), prompt_text_width(width));
     }
     let prompt_rows = rows.len() - content_start_row;
     rows.push(filled_empty_row(prompt_fill()));
@@ -795,6 +795,15 @@ fn push_answer_rows(rows: &mut Vec<VisualRow>, source: &AnswerLine, width: usize
         }
         rows.push(row);
     }
+}
+
+/// Prompt text stops one column short of its own band.
+///
+/// The band still reaches both edges, but the last column belongs to the scroll
+/// indicator, and a sentence running under it would be read as damaged text
+/// rather than as a thumb.
+fn prompt_text_width(width: usize) -> usize {
+    width.saturating_sub(1).max(1)
 }
 
 fn prompt_fill() -> Option<CellStyle> {
