@@ -65,8 +65,18 @@ records appended to the same native transcript.
   wrapped rows stay at the top, with the gray top padding when the viewport has
   room. The next prompt pushes the old block away one row at a time. The sticky
   copy never replaces or truncates the full prompt in ordinary history.
-- `PageUp` and `PageDown` scroll. Returning to the bottom resumes live
-  bottom-following.
+- `PageUp` and `PageDown` scroll by the view less two rows, so the rows at the
+  edge stay on screen. `Shift+Up` and `Shift+Down` move one row, `Shift+Home`
+  and `Shift+End` reach the oldest turn and the newest one. These keys answer in
+  the view and are never forwarded, so the history stays readable while a native
+  question is blocking or the composer is guarded; the bare arrows still scroll
+  only while the composer has no text for a cursor to move through. Returning to
+  the bottom resumes live bottom-following.
+- A history taller than the viewport draws a scroll thumb in the right gutter
+  column, skipping the rows a prompt band fills so the bands still reach both
+  terminal edges. A history that fits leaves both gutters untouched. While the
+  view is away from the bottom the footer leads with the number of rows below it
+  and the key that returns.
 - Mouse capture is deliberately off, so dragging across text uses Herdr's native
   selection and automatic copy, and OSC 8 links stay clickable.
 
@@ -105,7 +115,9 @@ their legacy style offsets cannot describe the new projection safely.
 | `Ctrl+J` | Portable newline fallback |
 | `Ctrl+V` | Attach an image through the native agent |
 | `Esc` | Interrupt the agent while it is working |
-| `PageUp` / `PageDown` | Scroll conversation history |
+| `PageUp` / `PageDown` | Scroll the conversation history by a page |
+| `Shift+Up` / `Shift+Down` | Scroll one row regardless of the composer |
+| `Shift+Home` / `Shift+End` | Jump to the oldest turn or the newest |
 
 Pastes below 1,000 characters stay directly editable. A paste of 1,000
 characters or more appears as one atomic `[Pasted Content · N chars]` token in

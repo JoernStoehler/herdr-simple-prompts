@@ -550,6 +550,76 @@ fn history_starts_at_the_bottom_and_page_up_moves_toward_older_turns() {
     assert!(!oldest.contains("prompt 19"));
 }
 
+fn row_text(buffer: &Buffer, y: u16, width: u16) -> String {
+    (0..width).map(|x| buffer[(x, y)].symbol()).collect()
+}
+
+fn gutter_column(buffer: &Buffer, width: u16, rows: Range<u16>) -> String {
+    rows.map(|y| buffer[(width - 1, y)].symbol()).collect()
+}
+
+/// A history taller than the pane has to say so: the reader cannot be expected
+/// to guess that there is more above, or how to get back to the newest answer.
+#[test]
+fn a_scrollable_history_shows_a_thumb_and_names_the_way_back() {
+    let mut app = AppState::default();
+    for index in 0..20 {
+        app.apply(AppEvent::NativeUser(Message::text(
+            format!("u{index}"),
+            format!("prompt {index}"),
+            Some(index),
+        )));
+        app.apply(AppEvent::NativeFinal(Message::final_text(
+            format!("a{index}"),
+            format!("answer {index}"),
+            Some(index),
+        )));
+    }
+    let (width, height) = (50, 12);
+
+    let following = rendered_buffer(&app, width, height);
+    let bar = gutter_column(&following, width, 0..height - 4);
+    assert!(
+        bar.contains('█'),
+        "a scrollable history must show a thumb: {bar:?}"
+    );
+    assert!(
+        !row_text(&following, height - 1, width).contains('↑'),
+        "a view at the newest answer has no distance to report"
+    );
+
+    app.scroll_from_bottom = usize::MAX;
+    let scrolled = rendered_buffer(&app, width, height);
+    let footer = row_text(&scrolled, height - 1, width);
+    assert!(footer.contains('↑'), "{footer:?}");
+    assert!(footer.contains("Shift+End for the latest"), "{footer:?}");
+    assert_ne!(
+        gutter_column(&scrolled, width, 0..height - 4),
+        bar,
+        "the thumb has to move with the view"
+    );
+}
+
+/// The bar is a statement about the history, not decoration: a conversation
+/// that fits leaves the gutters exactly as they were.
+#[test]
+fn a_history_that_fits_leaves_the_gutters_clear() {
+    let mut app = AppState::default();
+    app.apply(AppEvent::NativeUser(Message::text("u1", "question", None)));
+    app.apply(AppEvent::NativeFinal(Message::final_text(
+        "a1", "answer", None,
+    )));
+
+    let buffer = rendered_buffer(&app, 40, 20);
+
+    for y in 0..20 {
+        if buffer[(0, y)].style().bg == Some(Color::Rgb(52, 53, 54)) {
+            continue;
+        }
+        assert_clear_cell(&buffer, 39, y);
+    }
+}
+
 #[test]
 fn narrow_multiword_answer_scrolls_to_its_real_last_visual_row() {
     let mut app = AppState::default();

@@ -133,9 +133,22 @@ impl HistoryRenderCache {
         self.scroll_from_bottom
     }
 
-    #[cfg(test)]
-    fn maximum_offset(&self) -> usize {
+    pub(crate) fn maximum_offset(&self) -> usize {
         self.maximum_offset
+    }
+
+    /// A page keeps two rows of the previous view, so the eye has something to
+    /// land on instead of starting again in unfamiliar text.
+    pub(crate) fn page_rows(&self) -> usize {
+        self.viewport_height.unwrap_or(1).saturating_sub(2).max(1)
+    }
+
+    pub(crate) fn scroll_to_oldest(&mut self) {
+        self.scroll_from_bottom = self.maximum_offset;
+    }
+
+    pub(crate) fn scroll_to_latest(&mut self) {
+        self.scroll_from_bottom = 0;
     }
 
     #[cfg(test)]
@@ -197,6 +210,8 @@ fn render(
 
     let history_rows =
         history_cache.viewport_rows(app, areas[0].width, usize::from(areas[0].height));
+    let scrolled_rows = history_cache.scroll_from_bottom();
+    let scrollable_rows = history_cache.maximum_offset();
     let mut effects = RenderEffects {
         hyperlinks: hyperlink_patches(&history_rows, areas[0]),
         cursor: None,
@@ -210,6 +225,14 @@ fn render(
     );
     frame.render_widget(Paragraph::new(history), areas[0]);
     render_prompt_edge_fills(frame, frame_area, areas[0], &history_rows);
+    render_history_scrollbar(
+        frame,
+        frame_area,
+        areas[0],
+        &history_rows,
+        scrolled_rows,
+        scrollable_rows,
+    );
     if let Some(error) = app.visible_error() {
         frame.render_widget(
             Paragraph::new(Line::from(vec![
@@ -286,7 +309,7 @@ fn render(
             .scroll((composer_scroll, 0)),
         areas[3],
     );
-    frame.render_widget(Paragraph::new(footer(app)), areas[4]);
+    frame.render_widget(Paragraph::new(footer(app, scrolled_rows)), areas[4]);
 
     if app.input_enabled && composer_guard.is_none() && areas[3].width > 0 {
         let (cursor_row, cursor_column) =
@@ -371,6 +394,52 @@ fn render_prompt_edge_fills(
         let style = ratatui_style(fill);
         frame.buffer_mut()[(frame_area.x, y)].set_style(style);
         frame.buffer_mut()[(frame_area.right() - 1, y)].set_style(style);
+    }
+}
+
+/// The scroll thumb, drawn in the outer gutter column.
+///
+/// The history keeps its full content width: only the glyph and its color are
+/// set, and never on a row a prompt band fills, so the bands still reach both
+/// terminal edges. It appears only when there is something outside the view to
+/// reach — a history that fits says so by showing nothing, and the gutters of
+/// an unscrollable view stay empty.
+fn render_history_scrollbar(
+    frame: &mut Frame<'_>,
+    frame_area: Rect,
+    history_area: Rect,
+    rows: &[VisualRow],
+    scrolled_rows: usize,
+    scrollable_rows: usize,
+) {
+    if scrollable_rows == 0 || frame_area.width < 3 || history_area.height == 0 {
+        return;
+    }
+    let track = usize::from(history_area.height);
+    let thumb = (track * track / (track + scrollable_rows)).clamp(1, track);
+    let travel = track - thumb;
+    let rows_above = scrollable_rows - scrolled_rows.min(scrollable_rows);
+    let top = rows_above * travel / scrollable_rows;
+    let x = frame_area.right() - 1;
+    for offset in 0..track {
+        if rows.get(offset).is_none_or(|row| row.fill.is_some()) {
+            continue;
+        }
+        let Some(y) = history_area
+            .y
+            .checked_add(u16::try_from(offset).unwrap_or(u16::MAX))
+            .filter(|y| *y < history_area.bottom())
+        else {
+            break;
+        };
+        let on_thumb = offset >= top && offset < top + thumb;
+        let cell = &mut frame.buffer_mut()[(x, y)];
+        cell.set_symbol(if on_thumb { "█" } else { "│" });
+        cell.set_fg(if on_thumb {
+            Color::Gray
+        } else {
+            Color::DarkGray
+        });
     }
 }
 
@@ -641,11 +710,21 @@ fn attachment_visual_height(app: &AppState, width: u16) -> u16 {
     })
 }
 
-fn footer(app: &AppState) -> String {
+/// The footer says where the view stands as well as what it is looking at.
+///
+/// A history scrolled away from the latest answer looks much like one that has
+/// simply stopped growing, so the distance back and the key that closes it are
+/// named first, where even a narrow pane still shows them.
+fn footer(app: &AppState, scrolled_rows: usize) -> String {
+    let mut fields = Vec::new();
+    if scrolled_rows > 0 {
+        fields.push(format!("↑ {scrolled_rows} rows · Shift+End for the latest"));
+    }
     let Some(status) = &app.status_line else {
-        return "Simple Prompts · prefix+m to return".to_owned();
+        fields.push("Simple Prompts · prefix+m to return".to_owned());
+        return fields.join(" · ");
     };
-    let mut fields = vec![status.agent.to_string()];
+    fields.push(status.agent.to_string());
     if let Some(model) = &status.model {
         fields.push(model.clone());
     }

@@ -334,6 +334,13 @@ fn handle_key(
     local_sequence: &mut u64,
     history_cache: &mut render::HistoryRenderCache,
 ) -> AppResult<DraftChange> {
+    // Reading comes before everything else. These chords mean nothing to a
+    // composer or to a native question, so they are answered here and never
+    // forwarded: whatever the agent is doing, the conversation stays readable.
+    if let Some(scroll) = history_scroll_key(key) {
+        apply_history_scroll(scroll, app, history_cache);
+        return Ok(DraftChange::None);
+    }
     if app.agent_status == AgentStatus::Blocked {
         if let Some(input) = map_interaction_key(key)
             && let Err(error) = runtime.forward_interaction(input)
@@ -343,16 +350,6 @@ fn handle_key(
         return Ok(DraftChange::None);
     }
     match key.code {
-        KeyCode::PageUp => {
-            history_cache.scroll_up(5);
-            app.scroll_from_bottom = history_cache.scroll_from_bottom();
-            return Ok(DraftChange::None);
-        }
-        KeyCode::PageDown => {
-            history_cache.scroll_down(5);
-            app.scroll_from_bottom = history_cache.scroll_from_bottom();
-            return Ok(DraftChange::None);
-        }
         KeyCode::Up if scrolls_history(app, editor) => {
             history_cache.scroll_up(1);
             app.scroll_from_bottom = history_cache.scroll_from_bottom();
@@ -730,6 +727,52 @@ fn ordinary_input_allowed(app: &AppState) -> bool {
 /// composer is guarded, so navigation never depends on the native pane.
 fn scrolls_history(app: &AppState, editor: &Editor) -> bool {
     !ordinary_input_allowed(app) || editor.display_text().is_empty()
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum HistoryScroll {
+    RowUp,
+    RowDown,
+    PageUp,
+    PageDown,
+    Oldest,
+    Latest,
+}
+
+/// The chords that scroll whatever else is on screen.
+///
+/// The bare arrows belong to the wheel, and a composer with text keeps them for
+/// its cursor — a draft must never take reading away, so the same movements
+/// answer to shift as well, and `PageUp`/`PageDown` move by the view rather
+/// than by a fixed count.
+fn history_scroll_key(key: KeyEvent) -> Option<HistoryScroll> {
+    let shift = key.modifiers.contains(KeyModifiers::SHIFT);
+    match key.code {
+        KeyCode::PageUp => Some(HistoryScroll::PageUp),
+        KeyCode::PageDown => Some(HistoryScroll::PageDown),
+        KeyCode::Up if shift => Some(HistoryScroll::RowUp),
+        KeyCode::Down if shift => Some(HistoryScroll::RowDown),
+        KeyCode::Home if shift => Some(HistoryScroll::Oldest),
+        KeyCode::End if shift => Some(HistoryScroll::Latest),
+        _ => None,
+    }
+}
+
+fn apply_history_scroll(
+    scroll: HistoryScroll,
+    app: &mut AppState,
+    history_cache: &mut render::HistoryRenderCache,
+) {
+    let page = history_cache.page_rows();
+    match scroll {
+        HistoryScroll::RowUp => history_cache.scroll_up(1),
+        HistoryScroll::RowDown => history_cache.scroll_down(1),
+        HistoryScroll::PageUp => history_cache.scroll_up(page),
+        HistoryScroll::PageDown => history_cache.scroll_down(page),
+        HistoryScroll::Oldest => history_cache.scroll_to_oldest(),
+        HistoryScroll::Latest => history_cache.scroll_to_latest(),
+    }
+    app.scroll_from_bottom = history_cache.scroll_from_bottom();
 }
 
 /// Clears back to the start of the line, pictures and all.
@@ -2222,6 +2265,156 @@ mod tests {
         .unwrap();
 
         assert!(app.scroll_from_bottom > 0);
+    }
+
+    /// A draft must never cost the reader the history: the shift arrows keep
+    /// scrolling while the bare arrows stay with the cursor.
+    #[test]
+    fn shift_arrows_scroll_the_history_while_the_composer_holds_a_draft() {
+        let (runtime, _actions) = runtime::interaction_test_runtime(1);
+        let mut app = AppState {
+            native_composer: NativeComposerState::Clear,
+            ..AppState::default()
+        };
+        let mut editor = Editor::default();
+        editor.insert_paste("draft line one\ndraft line two");
+        let cursor = editor.display_cursor_byte();
+        let mut sequence = 1;
+        let mut cache = render::HistoryRenderCache::default();
+        for index in 0..8 {
+            app.apply(crate::app::AppEvent::NativeUser(Message::text(
+                format!("u{index}"),
+                format!("prompt {index}"),
+                Some(index),
+            )));
+        }
+        cache.viewport_rows(&app, 40, 3);
+
+        handle_key(
+            KeyEvent::new(KeyCode::Up, KeyModifiers::SHIFT),
+            &mut app,
+            &mut editor,
+            &runtime,
+            &mut sequence,
+            &mut cache,
+        )
+        .unwrap();
+
+        assert!(app.scroll_from_bottom > 0);
+        assert_eq!(editor.display_cursor_byte(), cursor);
+
+        let scrolled = app.scroll_from_bottom;
+        handle_key(
+            KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT),
+            &mut app,
+            &mut editor,
+            &runtime,
+            &mut sequence,
+            &mut cache,
+        )
+        .unwrap();
+
+        assert!(app.scroll_from_bottom < scrolled);
+        assert_eq!(editor.display_cursor_byte(), cursor);
+    }
+
+    /// A page is the view rather than a fixed count, and both ends of the
+    /// history are one press away.
+    #[test]
+    fn page_keys_move_by_the_view_and_shift_home_end_reach_both_ends() {
+        let (runtime, _actions) = runtime::interaction_test_runtime(1);
+        let mut app = AppState {
+            native_composer: NativeComposerState::Clear,
+            ..AppState::default()
+        };
+        let mut editor = Editor::default();
+        let mut sequence = 1;
+        let mut cache = render::HistoryRenderCache::default();
+        for index in 0..20 {
+            app.apply(crate::app::AppEvent::NativeUser(Message::text(
+                format!("u{index}"),
+                format!("prompt {index}"),
+                Some(index),
+            )));
+        }
+        cache.viewport_rows(&app, 40, 10);
+
+        let mut press = |key, app: &mut AppState, editor: &mut Editor, cache: &mut _| {
+            handle_key(key, app, editor, &runtime, &mut sequence, cache).unwrap()
+        };
+
+        press(
+            KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
+            &mut app,
+            &mut editor,
+            &mut cache,
+        );
+        assert_eq!(app.scroll_from_bottom, cache.page_rows());
+        assert_eq!(
+            cache.page_rows(),
+            8,
+            "a page keeps two rows of the old view"
+        );
+
+        press(
+            KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
+            &mut app,
+            &mut editor,
+            &mut cache,
+        );
+        assert_eq!(app.scroll_from_bottom, 0);
+
+        press(
+            KeyEvent::new(KeyCode::Home, KeyModifiers::SHIFT),
+            &mut app,
+            &mut editor,
+            &mut cache,
+        );
+        assert_eq!(app.scroll_from_bottom, cache.maximum_offset());
+        assert!(app.scroll_from_bottom > 0);
+
+        press(
+            KeyEvent::new(KeyCode::End, KeyModifiers::SHIFT),
+            &mut app,
+            &mut editor,
+            &mut cache,
+        );
+        assert_eq!(app.scroll_from_bottom, 0);
+    }
+
+    /// A blocking question owns the keys it can use. These are not among them:
+    /// they scroll here and are never forwarded to the native pane.
+    #[test]
+    fn history_scroll_keys_work_while_a_native_question_is_blocking() {
+        let (runtime, actions) = runtime::interaction_test_runtime(1);
+        let mut app = AppState {
+            agent_status: AgentStatus::Blocked,
+            ..AppState::default()
+        };
+        let mut editor = Editor::default();
+        let mut sequence = 1;
+        let mut cache = render::HistoryRenderCache::default();
+        for index in 0..8 {
+            app.apply(crate::app::AppEvent::NativeUser(Message::text(
+                format!("u{index}"),
+                format!("prompt {index}"),
+                Some(index),
+            )));
+        }
+        cache.viewport_rows(&app, 40, 3);
+
+        handle_key(
+            KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
+            &mut app,
+            &mut editor,
+            &runtime,
+            &mut sequence,
+            &mut cache,
+        )
+        .unwrap();
+
+        assert!(app.scroll_from_bottom > 0);
+        assert!(actions.try_recv().is_err());
     }
 
     #[test]
