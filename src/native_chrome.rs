@@ -34,6 +34,18 @@ pub(crate) fn line_text(text: &str, range: LineRange) -> &str {
     &text[range.start..range.end]
 }
 
+/// The bullets Claude prints in the first column of a line it authored.
+///
+/// The shipping build moved from `\u{23fa}` to `\u{25cf}`; a build older than
+/// that move still prints the first. Both are listed so a pane on either one is
+/// read the same way, and so the composer classifier and the capture path agree
+/// on what "the agent wrote this line" means.
+pub(crate) const CLAUDE_ROLE_PREFIXES: &[&str] = &["\u{23fa} ", "\u{25cf} "];
+
+pub(crate) fn starts_with_any(line: &str, prefixes: &[&str]) -> bool {
+    prefixes.iter().any(|prefix| line.starts_with(prefix))
+}
+
 pub(crate) fn is_pure_separator(line: &str, minimum_width: usize) -> bool {
     line.chars().count() >= minimum_width && line.chars().all(|character| character == '─')
 }

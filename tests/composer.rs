@@ -398,3 +398,35 @@ fn a_composer_holding_only_images_is_offered_for_adoption() {
 
     assert_eq!(native_composer_parts(AgentKind::Codex, &surface(" ")), None);
 }
+
+/// A custom `statusLine` adds a chrome line below the composer's closing rule.
+///
+/// Requiring a single trailing line left every pane configured with one
+/// classified `Unknown`, and the overlay refused all typing with
+/// `Unable to verify native composer`. Shape taken from a live pane.
+#[test]
+fn claude_composer_is_verifiable_under_a_custom_status_line() {
+    let rule = "─".repeat(32);
+    let surface = format!(
+        "● answer\n{rule}\n❯\u{a0}\n{rule}\n  Opus 5 (1M context)  ~/…/staff-roster-row-edit-v4  fix/staff-roster-row-edit-v4  ctx 49%\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents"
+    );
+
+    assert_eq!(
+        classify_native_composer(AgentKind::Claude, &plain(&surface)),
+        NativeComposerState::Clear
+    );
+}
+
+/// The shipping build opens an authored line with `●`; older ones used `⏺`.
+#[test]
+fn claude_answers_below_the_composer_stay_unverifiable_under_either_bullet() {
+    let rule = "─".repeat(32);
+    for bullet in ['\u{23fa}', '\u{25cf}'] {
+        let surface = format!("{rule}\n❯\u{a0}\n{rule}\n{bullet} an older answer");
+        assert_eq!(
+            classify_native_composer(AgentKind::Claude, &plain(&surface)),
+            NativeComposerState::Unknown,
+            "bullet {bullet:?} must still mark the line as the agent's"
+        );
+    }
+}

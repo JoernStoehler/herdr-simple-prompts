@@ -147,6 +147,14 @@ surface is checked:
 - an unrecognized or incomplete composer layout is blocked conservatively rather
   than assumed empty.
 
+The Claude composer is found between its two rules, and what sits below the
+closing rule is chrome, however many lines it runs to - a custom `statusLine`
+prints its own above the mode hint. The boundary is rejected only when a line
+below it is one Claude authored, which the shipping build opens with a filled
+circle and older builds with a filled square. The capture path that lifts native
+answer styling reads the same rule, so neither can accept a pane the other
+refuses.
+
 The check returns only a coarse state and an attachment count. Native draft text
 and native attachment paths never enter plugin state, the journal, logs, or
 error messages.

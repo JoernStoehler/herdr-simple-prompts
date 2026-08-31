@@ -1,6 +1,7 @@
 use crate::agent::AgentKind;
 use crate::native_chrome::{
-    LineRange, composer_content_start, is_known_footer, is_pure_separator, line_ranges, line_text,
+    CLAUDE_ROLE_PREFIXES, LineRange, composer_content_start, is_known_footer, is_pure_separator,
+    line_ranges, line_text, starts_with_any,
 };
 use crate::style::{AnsiColor, StyleRun, StyledText, validate_styled_text};
 
@@ -96,16 +97,25 @@ fn codex_content(text: &str, lines: &[LineRange]) -> Option<Vec<LineRange>> {
 /// a `model · cwd` footer therefore never matched, and the overlay treated
 /// every Claude pane as unverifiable. Anchor on the rules instead and require
 /// only that nothing agent-authored follows them.
+/// Whether Claude authored a line, as opposed to drawing chrome around it.
+///
+/// Claude opens each line it writes with a bullet in the first column, and
+/// indents the chrome below the composer. Counting the chrome lines instead
+/// assumed the mode hint was the only one; a custom `statusLine` prints its own
+/// line above that hint, and every pane configured with one became
+/// unverifiable, so the overlay refused all typing.
+fn is_agent_authored(line: &str) -> bool {
+    starts_with_any(line, CLAUDE_ROLE_PREFIXES)
+}
+
 fn claude_content(text: &str, lines: &[LineRange]) -> Option<Vec<LineRange>> {
     let close = lines
         .iter()
         .rposition(|line| is_pure_separator(line_text(text, *line), 16))?;
-    let trailing = lines[close + 1..]
+    if lines[close + 1..]
         .iter()
-        .map(|line| line_text(text, *line))
-        .filter(|line| !line.trim().is_empty())
-        .collect::<Vec<_>>();
-    if trailing.len() > 1 || trailing.iter().any(|line| line.starts_with("⏺ ")) {
+        .any(|line| is_agent_authored(line_text(text, *line)))
+    {
         return None;
     }
 

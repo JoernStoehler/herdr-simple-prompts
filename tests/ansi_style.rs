@@ -870,7 +870,7 @@ fn native_final_capture_accepts_only_agent_owned_trailing_chrome() {
         (AgentKind::Codex, "gpt-unreviewed payload"),
         (AgentKind::Codex, "gpt-unreviewed · payload"),
         (AgentKind::Claude, "⏺ an older answer"),
-        (AgentKind::Claude, "hint one\nhint two\nhint three"),
+        (AgentKind::Claude, "● an older answer"),
     ] {
         let prefix = match kind {
             AgentKind::Codex => "• answer\n────────\n› Write a prompt\n",
@@ -882,6 +882,29 @@ fn native_final_capture_accepts_only_agent_owned_trailing_chrome() {
             "unsafe footer was accepted: {unsafe_footer:?}",
         );
     }
+}
+
+/// A custom `statusLine` prints its own line between the closing rule and the
+/// mode hint, so the chrome below a Claude composer is not one line.
+///
+/// Taken from a live pane running `~/.claude/statusline-command.sh`. Capping the
+/// chrome at a line count made every pane configured with one uncapturable.
+#[test]
+fn native_final_capture_reads_claude_chrome_under_a_custom_status_line() {
+    let ansi = concat!(
+        "────────────────────────────────\n",
+        "● answer\n",
+        "────────────────────────────────\n",
+        "❯\u{a0}\n",
+        "────────────────────────────────\n",
+        "  Opus 5 (1M context)  ~/…/staff-roster-row-edit-v4  fix/staff-roster-row-edit-v4  ctx 49%\n",
+        "  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents",
+    );
+
+    assert!(
+        extract_native_final(ansi, "answer", AgentKind::Claude).is_some(),
+        "a custom status line must not hide the composer boundary"
+    );
 }
 
 /// The chrome of the shipping Claude build, taken from a live pane dump.

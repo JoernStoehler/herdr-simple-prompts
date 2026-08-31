@@ -1,7 +1,7 @@
 use crate::agent::AgentKind;
 use crate::native_chrome::{
-    LineRange, composer_content_start, is_known_footer, is_pure_separator, line_ranges, line_text,
-    valid_elapsed_label,
+    CLAUDE_ROLE_PREFIXES, LineRange, composer_content_start, is_known_footer, is_pure_separator,
+    line_ranges, line_text, starts_with_any, valid_elapsed_label,
 };
 use crate::style::{AnsiColor, StyleRun, StyleRunBuilder, StyleState, StyledText};
 use unicode_width::UnicodeWidthChar;
@@ -22,9 +22,11 @@ struct NativeChrome {
 enum TrailingRule {
     /// Codex ends with a real `model · cwd` footer.
     KnownFooter,
-    /// Claude ends with a closing rule and a mode hint; neither names the
-    /// model or the working directory, so the shape is all there is to check.
-    ChromeLines(usize),
+    /// Claude ends with a closing rule and chrome that names neither the model
+    /// nor the working directory, so authorship is all there is to check.
+    /// Counting the chrome lines instead assumed the mode hint was the only
+    /// one, and a custom `statusLine` adds a line of its own above it.
+    AgentFree,
 }
 
 const CODEX_CHROME: NativeChrome = NativeChrome {
@@ -37,12 +39,12 @@ const CODEX_CHROME: NativeChrome = NativeChrome {
 };
 
 const CLAUDE_CHROME: NativeChrome = NativeChrome {
-    role_prefixes: &["⏺ "],
+    role_prefixes: CLAUDE_ROLE_PREFIXES,
     continuation_prefixes: &["  "],
     separator_min_width: 16,
     trailing_boundary_prefixes: &[],
     composer_marker: '❯',
-    trailing: TrailingRule::ChromeLines(2),
+    trailing: TrailingRule::AgentFree,
 };
 
 pub fn sanitize_ansi(input: &str) -> StyledText {
@@ -334,10 +336,6 @@ fn matches_decorated_boundary(line: &str, prefix: &str, minimum_width: usize) ->
         && suffix.chars().all(|character| character == '─')
 }
 
-fn starts_with_any(line: &str, prefixes: &[&str]) -> bool {
-    prefixes.iter().any(|prefix| line.starts_with(prefix))
-}
-
 fn is_composer_line(line: &str, chrome: &NativeChrome) -> bool {
     composer_content_start(line, chrome.composer_marker).is_some()
 }
@@ -352,12 +350,9 @@ fn trailing_is_chrome(text: &str, ranges: &[LineRange], chrome: &NativeChrome) -
         .collect::<Vec<_>>();
     match chrome.trailing {
         TrailingRule::KnownFooter => trailing.iter().all(|line| is_known_footer(line)),
-        TrailingRule::ChromeLines(limit) => {
-            trailing.len() <= limit
-                && !trailing
-                    .iter()
-                    .any(|line| starts_with_any(line, chrome.role_prefixes))
-        }
+        TrailingRule::AgentFree => !trailing
+            .iter()
+            .any(|line| starts_with_any(line, chrome.role_prefixes)),
     }
 }
 
