@@ -111,10 +111,45 @@ fn keeps_prompts_queued_while_the_agent_works() {
     assert_eq!(queued.attachments.len(), 1);
     assert_eq!(queued.timestamp_ms, Some(1_786_528_860_000));
     assert!(matches!(&events[3], ConversationEvent::User(message)
+            if message.text == "and the queued one landed"));
+    assert!(matches!(&events[4], ConversationEvent::User(message)
             if message.text == "and stop after that" && message.attachments.is_empty()));
-    assert_eq!(events.len(), 4, "task notifications must stay hidden");
+    assert_eq!(events.len(), 5, "task notifications must stay hidden");
     assert!(matches!(
         adapter.finalize_pending(),
         Some(ConversationEvent::Final(message)) if message.text == "Both handled."
+    ));
+}
+
+#[test]
+fn hides_a_task_notification_dequeued_as_a_user_record() {
+    let mut adapter = ClaudeAdapter::default();
+    let line = serde_json::json!({
+        "type": "user",
+        "uuid": "n1",
+        "origin": {"kind": "task-notification"},
+        "promptSource": "system",
+        "message": {"role": "user", "content": "<task-notification>done</task-notification>"},
+    })
+    .to_string();
+
+    assert!(adapter.ingest_line(1, &line).unwrap().is_empty());
+}
+
+#[test]
+fn keeps_a_message_relayed_from_a_coordinator_session() {
+    let mut adapter = ClaudeAdapter::default();
+    let line = serde_json::json!({
+        "type": "user",
+        "uuid": "c1",
+        "origin": {"kind": "coordinator"},
+        "message": {"role": "user", "content": "The coordinator sent a message: fix the P1."},
+    })
+    .to_string();
+
+    assert!(matches!(
+        adapter.ingest_line(1, &line).unwrap().as_slice(),
+        [ConversationEvent::User(message)]
+            if message.text == "The coordinator sent a message: fix the P1."
     ));
 }

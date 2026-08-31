@@ -6,5 +6,8 @@
 {"type":"queue-operation","operation":"remove","timestamp":"2026-08-12T10:01:20.000Z","content":"[Image #3] look at this too"}
 {"type":"attachment","uuid":"q1","isSidechain":false,"timestamp":"2026-08-12T10:01:00.000Z","attachment":{"type":"queued_command","commandMode":"prompt","origin":{"kind":"human"},"prompt":[{"type":"text","text":"[Image #3] look at this too"},{"type":"image","source":{"type":"base64","media_type":"image/png","data":"omitted"}}]}}
 {"type":"attachment","uuid":"q2","isSidechain":false,"timestamp":"2026-08-12T10:02:00.000Z","attachment":{"type":"queued_command","commandMode":"task-notification","prompt":"<task-notification>a background agent finished</task-notification>"}}
+{"type":"queue-operation","operation":"enqueue","timestamp":"2026-08-12T10:02:00.000Z","content":"<task-notification>a background agent finished</task-notification>"}
+{"type":"user","uuid":"n1","isSidechain":false,"timestamp":"2026-08-12T10:02:05.000Z","origin":{"kind":"task-notification"},"promptSource":"system","queueSkipAttachments":true,"message":{"role":"user","content":"<task-notification>a background agent finished</task-notification>"}}
+{"type":"user","uuid":"u3","isSidechain":false,"timestamp":"2026-08-12T10:02:30.000Z","origin":{"kind":"human"},"promptSource":"queued","message":{"role":"user","content":"and the queued one landed"}}
 {"type":"attachment","uuid":"q3","isSidechain":false,"timestamp":"2026-08-12T10:03:00.000Z","attachment":{"type":"queued_command","commandMode":"prompt","origin":{"kind":"human"},"prompt":"and stop after that"}}
 {"type":"assistant","uuid":"a3","isSidechain":false,"message":{"role":"assistant","content":[{"type":"text","text":"Both handled."}]}}

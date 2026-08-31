@@ -47,17 +47,17 @@ impl ClaudeAdapter {
         let Some(content) = record.pointer("/message/content") else {
             return Vec::new();
         };
-        if contains_block(content, "tool_result") {
+        if contains_block(content, "tool_result") || is_system_prompt(record) {
             return Vec::new();
         }
         self.emit_user(line_number, record, content)
     }
 
-    // A prompt typed while the agent is working never reaches the transcript as
-    // a `user` record. Claude Code stores it once, as a `queued_command`
-    // attachment holding the same blocks the model was given, so this is the
-    // only place those prompts can be read from. Queued commands the person did
-    // not type - a background task notification, for one - stay hidden.
+    // A prompt typed while the agent is working is usually stored once, as a
+    // `queued_command` attachment holding the same blocks the model was given,
+    // rather than as a `user` record, so this is the only place those prompts
+    // can be read from. Queued commands the person did not type - a background
+    // task notification, for one - stay hidden.
     fn parse_queued_prompt(&mut self, line_number: u64, record: &Value) -> Vec<ConversationEvent> {
         let Some(attachment) = record.get("attachment") else {
             return Vec::new();
@@ -123,6 +123,18 @@ impl ClaudeAdapter {
             record_timestamp_ms(record),
         ));
     }
+}
+
+// Claude Code writes prompts of its own into the transcript. A finished
+// background command is queued as a `queued_command` attachment and then
+// dequeued as a `user` record whose body is indistinguishable from a typed
+// prompt; only the envelope tells them apart - `promptSource: "system"`, with
+// `origin.kind` naming the injector. A message relayed from a coordinator
+// session is still someone addressing this session, so it is not a system
+// prompt and stays visible.
+fn is_system_prompt(record: &Value) -> bool {
+    record.get("promptSource").and_then(Value::as_str) == Some("system")
+        || record.pointer("/origin/kind").and_then(Value::as_str) == Some("task-notification")
 }
 
 fn visible_text(content: &Value) -> String {

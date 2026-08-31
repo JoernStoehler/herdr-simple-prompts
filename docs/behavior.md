@@ -59,8 +59,12 @@ records appended to the same native transcript.
   add no metadata row and no gap.
 - A prompt typed while Claude Code is working is queued rather than sent, and
   Claude Code stores it as a queued command instead of a user record. It appears
-  in its queued position with its images, like any other prompt. Queued commands
-  nobody typed - background task notifications, for one - stay hidden.
+  in its queued position with its images, like any other prompt. Prompts nobody
+  typed stay hidden: a finished background command is queued as a task
+  notification and then dequeued as a user record whose body reads like a typed
+  prompt, so both shapes are dropped on `promptSource: "system"` and on an
+  `origin.kind` of `task-notification`. A message relayed into the session from
+  a coordinator is someone addressing the session and stays visible.
 - Once a prompt scrolls out of its natural position, at most its first two
   wrapped rows stay at the top, with the gray top padding when the viewport has
   room. The next prompt pushes the old block away one row at a time. The sticky
