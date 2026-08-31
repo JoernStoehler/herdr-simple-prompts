@@ -1,6 +1,6 @@
 id = "herdr.simple-prompts"
 name = "Simple Prompts"
-version = "0.2.0"
+version = "0.3.0"
 min_herdr_version = "0.7.5"
 description = "Show only user prompts and final Codex or Claude answers"
 platforms = ["linux", "macos"]

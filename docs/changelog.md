@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.0
+
+- Background task notifications no longer read as prompts you typed. Claude Code
+  queues a finished background command and then writes the same text back as an
+  ordinary user record when it dequeues; only the envelope says the system wrote
+  it, so the body was rendered as a prompt like any other. Both shapes are now
+  dropped. A message relayed in from a coordinator session is someone addressing
+  the session and still appears.
+- Typing works again in a pane whose Claude Code runs a custom `statusLine`.
+  Such a pane prints two lines of chrome below the composer - the status line
+  and the mode hint - where the reader allowed one, so it declared the composer
+  unverifiable and refused every keystroke with `Unable to verify native
+  composer`. The boundary now asks who wrote the line below the rule instead of
+  counting lines, which also restores native answer colors in those panes: the
+  capture path shared the same limit, and the shipping build's bullet had moved
+  besides, so its check for an older answer had quietly stopped matching.
+
 ## 0.2.0
 
 - History navigation that no longer depends on the composer. `PageUp` and
