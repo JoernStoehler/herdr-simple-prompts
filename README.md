@@ -17,7 +17,7 @@ These agent versions have been tested on macOS and Linux:
 
 | Agent | Tested versions |
 |---|---|
-| Codex CLI | `0.146.0`–`0.149.0` |
+| Codex CLI | `0.146.0`–`0.149.0`, `0.153.0` |
 | Claude Code | `2.1.237` |
 
 Newer agent releases may work, but have not yet been verified.
@@ -25,11 +25,11 @@ Newer agent releases may work, but have not yet been verified.
 ## Install
 
 You need Herdr 0.7.5+, Rust 1.88+ with Cargo, `jq`, and either Codex CLI
-`0.146.0`–`0.149.0` or Claude Code `2.1.237`. The JSON tool supports automatic
-recovery of already-running Codex sessions.
+`0.146.0`–`0.149.0`/`0.153.0` or Claude Code `2.1.237`. The JSON tool supports
+automatic recovery of already-running Codex sessions.
 
 ```bash
-herdr plugin install AlexSamarsky/herdr-simple-prompts
+herdr plugin install JoernStoehler/herdr-simple-prompts
 herdr integration install codex   # or: herdr integration install claude
 ```
 
@@ -84,8 +84,10 @@ No binary is published: Herdr clones this source and builds it locally with
 - Images appear as `[Image #N]` placeholders - the view never renders pixels.
 - When the agent asks something, the view shows `INTERACTION REQUIRED` and
   forwards your keys to the native question until it is answered.
-- Unsent text in the native composer blocks editing here, so the two drafts can
-  never merge. Press `prefix+m` and clear it.
+- Recognizable unsent text in the native composer is adopted into an empty
+  Simple Prompts draft and cleared from the native copy, including a steer
+  drafted while Codex is working. If adoption cannot be verified, editing stays
+  blocked and `prefix+m` returns to the preserved native draft.
 - Dragging selects and copies through Herdr; links are clickable in OSC 8
   terminals.
 
@@ -94,9 +96,10 @@ No binary is published: Herdr clones this source and builds it locally with
 The native transcript is never modified. Simple Prompts keeps its own private
 copy of the prompts and final answers it displayed, scoped to one source pane
 and one native session, so reopening the view restores what you saw. Reasoning,
-tool traffic, native draft text, attachment paths, and large-paste bodies never
-enter it. State files are `0600` inside `0700` directories and are deleted when
-the source pane closes.
+tool traffic, native attachment paths, and submitted large-paste bodies never
+enter it. An unsent draft is stored privately so it can survive toggling and
+send failures. State files are `0600` inside `0700` directories and are deleted
+when the source pane closes.
 
 ## Development
 

@@ -1065,7 +1065,7 @@ fn occupied_native_composer_hides_plugin_draft_and_preserves_history() {
 
     let rendered = render_to_string(&app, &editor, 80, 18);
 
-    assert!(rendered.contains("Native composer contains unsent input · prefix+m to return"));
+    assert!(rendered.contains("Native draft is preserved in Codex · prefix+m to return"));
     assert!(rendered.contains("visible history"));
     assert!(!rendered.contains("private plugin draft"));
     assert!(!rendered.contains("screen.png"));

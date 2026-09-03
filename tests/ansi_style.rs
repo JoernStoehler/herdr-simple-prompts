@@ -583,6 +583,20 @@ fn exact_codex_final_capture_removes_only_known_chrome_and_preserves_styles() {
 }
 
 #[test]
+fn exact_codex_final_capture_accepts_the_wrapped_responsive_footer() {
+    let ansi = concat!(
+        "────────\n",
+        "• answer\n",
+        "────────\n",
+        "› Ask Codex to do anything\n",
+        "gpt-5.6-sol high · agent-dashboard · Context 21% used · weekly 62%\n",
+        "  left · …",
+    );
+
+    assert!(extract_native_final(ansi, "answer", AgentKind::Codex).is_some());
+}
+
+#[test]
 fn native_final_capture_matches_projected_visible_text_and_keeps_native_styles() {
     let canonical = "# Final **heading**\nUse [docs](https://example.test) and `cargo test`.";
     let projected = style_markdown(canonical);

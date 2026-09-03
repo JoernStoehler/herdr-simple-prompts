@@ -1,7 +1,8 @@
 use crate::agent::AgentKind;
 use crate::native_chrome::{
-    CLAUDE_ROLE_PREFIXES, LineRange, composer_content_start, is_known_footer, is_pure_separator,
-    line_ranges, line_text, starts_with_any, valid_elapsed_label,
+    CLAUDE_ROLE_PREFIXES, LineRange, composer_content_start, is_known_footer,
+    is_known_footer_continuation, is_pure_separator, line_ranges, line_text, starts_with_any,
+    valid_elapsed_label,
 };
 use crate::style::{AnsiColor, StyleRun, StyleRunBuilder, StyleState, StyledText};
 use unicode_width::UnicodeWidthChar;
@@ -349,7 +350,12 @@ fn trailing_is_chrome(text: &str, ranges: &[LineRange], chrome: &NativeChrome) -
         .filter(|line| !line.trim().is_empty())
         .collect::<Vec<_>>();
     match chrome.trailing {
-        TrailingRule::KnownFooter => trailing.iter().all(|line| is_known_footer(line)),
+        TrailingRule::KnownFooter => trailing.first().is_none_or(|line| {
+            is_known_footer(line)
+                && trailing[1..]
+                    .iter()
+                    .all(|line| is_known_footer(line) || is_known_footer_continuation(line))
+        }),
         TrailingRule::AgentFree => !trailing
             .iter()
             .any(|line| starts_with_any(line, chrome.role_prefixes)),

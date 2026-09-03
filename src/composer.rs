@@ -1,7 +1,8 @@
 use crate::agent::AgentKind;
 use crate::native_chrome::{
-    CLAUDE_ROLE_PREFIXES, LineRange, composer_content_start, is_known_footer, is_pure_separator,
-    line_ranges, line_text, starts_with_any,
+    CLAUDE_ROLE_PREFIXES, LineRange, composer_content_start, is_codex_queue_footer,
+    is_known_footer, is_known_footer_continuation, is_pure_separator, line_ranges, line_text,
+    starts_with_any,
 };
 use crate::style::{AnsiColor, StyleRun, StyledText, validate_styled_text};
 
@@ -49,13 +50,14 @@ pub fn classify_native_composer(kind: AgentKind, surface: &StyledText) -> Native
 }
 
 fn codex_content(text: &str, lines: &[LineRange]) -> Option<Vec<LineRange>> {
-    let footer = lines
-        .iter()
-        .rposition(|line| is_known_footer(line_text(text, *line)))?;
-    if lines[footer + 1..]
-        .iter()
-        .any(|line| !line_text(text, *line).trim().is_empty())
-    {
+    let footer = lines.iter().rposition(|line| {
+        let line = line_text(text, *line);
+        is_known_footer(line) || is_codex_queue_footer(line)
+    })?;
+    if lines[footer + 1..].iter().any(|line| {
+        let line = line_text(text, *line);
+        !line.trim().is_empty() && !is_known_footer_continuation(line)
+    }) {
         return None;
     }
 

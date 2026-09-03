@@ -39,6 +39,18 @@ fn codex_working_surface(prompt: &str, elapsed: &str, separator: char, suffix: &
     )
 }
 
+fn narrow_codex_surface(prompt: &str) -> String {
+    format!(
+        "• answer\n────────\n› {prompt}\ngpt-5.6-sol high · agent-dashboard · Context 21% used · weekly 62%\n  left · …"
+    )
+}
+
+fn narrowest_codex_surface(prompt: &str) -> String {
+    format!(
+        "• answer\n────────\n› {prompt}\ngpt-5.6-sol high · agent-dashboard · Context 43% used · …"
+    )
+}
+
 fn claude_surface(prompt: &str) -> String {
     format!("⏺ answer\n────────────────\n❯ {prompt}\n────────────────\nClaude Opus · /repo")
 }
@@ -64,6 +76,71 @@ fn codex_dim_only_placeholder_is_clear() {
     assert_eq!(
         classify_native_composer(AgentKind::Codex, &surface),
         NativeComposerState::Clear
+    );
+}
+
+#[test]
+fn codex_0153_narrow_responsive_footer_classifies_the_composer() {
+    let text = narrow_codex_surface("Ask Codex to do anything");
+    let start_byte = text.find("Ask Codex to do anything").unwrap();
+    let surface = StyledText {
+        text,
+        runs: vec![StyleRun {
+            start_byte,
+            end_byte: start_byte + "Ask Codex to do anything".len(),
+            foreground: None,
+            background: None,
+            modifiers: StyleModifiers {
+                dim: true,
+                ..StyleModifiers::default()
+            },
+        }],
+    };
+
+    assert_eq!(
+        classify_native_composer(AgentKind::Codex, &surface),
+        NativeComposerState::Clear
+    );
+    assert_eq!(
+        classify_native_composer(
+            AgentKind::Codex,
+            &plain(&narrow_codex_surface("unsent native text")),
+        ),
+        NativeComposerState::Occupied
+    );
+
+    let text = narrowest_codex_surface("Ask Codex to do anything");
+    let start_byte = text.find("Ask Codex to do anything").unwrap();
+    let surface = StyledText {
+        text,
+        runs: vec![StyleRun {
+            start_byte,
+            end_byte: start_byte + "Ask Codex to do anything".len(),
+            foreground: None,
+            background: None,
+            modifiers: StyleModifiers {
+                dim: true,
+                ..StyleModifiers::default()
+            },
+        }],
+    };
+    assert_eq!(
+        classify_native_composer(AgentKind::Codex, &surface),
+        NativeComposerState::Clear
+    );
+}
+
+#[test]
+fn codex_working_queued_draft_uses_its_dedicated_footer() {
+    let surface = plain(concat!(
+        "• Working (2s • esc to interrupt)\n",
+        "› queued native text\n",
+        "tab to queue message                  55% context left",
+    ));
+
+    assert_eq!(
+        classify_native_composer(AgentKind::Codex, &surface),
+        NativeComposerState::Occupied
     );
 }
 

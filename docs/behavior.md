@@ -140,8 +140,10 @@ The plugin editor is separate from the native Codex or Claude composer. Before
 editing, and again immediately before submission, the recognized native composer
 surface is checked:
 
-- unsent native text disables editing and submission here and asks you to press
-  `prefix+m`; both drafts stay unchanged;
+- recognizable native text is adopted into an empty Simple Prompts draft when
+  the view opens and cleared from the native composer; if it cannot be adopted,
+  editing and submission stay disabled and `prefix+m` returns to the preserved
+  native draft;
 - native image placeholders are accepted only when their count exactly matches
   the images attached by Simple Prompts;
 - an unrecognized or incomplete composer layout is blocked conservatively rather

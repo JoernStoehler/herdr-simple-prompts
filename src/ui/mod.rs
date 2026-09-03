@@ -1539,6 +1539,11 @@ mod tests {
         "› \n",
         "gpt-5.6-sol xhigh · /repo · weekly 75% left",
     );
+    const QUEUED_CODEX: &str = concat!(
+        "• Working (2s • esc to interrupt)\n",
+        "› half written steer\n",
+        "tab to queue message                  55% context left",
+    );
 
     /// Opening the overlay over a half-written prompt should not mean switching
     /// back to finish it.
@@ -1568,6 +1573,34 @@ mod tests {
         assert!(adopted.markers.is_empty());
         assert!(adopted.cleared);
         assert!(cleared.get() > 0, "the composer must have been cleared");
+    }
+
+    #[test]
+    fn adopting_an_active_turn_draft_moves_it_into_the_overlay() {
+        let cleared = std::cell::Cell::new(0);
+        let adopted = super::adopt_native_draft(
+            AgentKind::Codex,
+            || {
+                Ok(if cleared.get() == 0 {
+                    QUEUED_CODEX.to_owned()
+                } else {
+                    EMPTY_CODEX.to_owned()
+                })
+            },
+            |_| {
+                cleared.set(cleared.get() + 1);
+                Ok(())
+            },
+            8,
+            std::time::Duration::ZERO,
+        )
+        .unwrap()
+        .expect("a queued steer must be adopted");
+
+        assert_eq!(adopted.text, "half written steer");
+        assert!(adopted.markers.is_empty());
+        assert!(adopted.cleared);
+        assert!(cleared.get() > 0, "the native copy must be cleared");
     }
 
     #[test]

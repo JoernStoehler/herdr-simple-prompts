@@ -92,10 +92,37 @@ fn is_workdir_field(field: &str) -> bool {
     field == "~" || field.starts_with("~/") || field.starts_with('/')
 }
 
+fn is_percentage(value: &str) -> bool {
+    value
+        .strip_suffix('%')
+        .and_then(|digits| digits.parse::<u8>().ok())
+        .is_some_and(|percentage| percentage <= 100)
+}
+
+fn is_context_usage_field(field: &str) -> bool {
+    let Some(value) = field.strip_prefix("Context ") else {
+        return false;
+    };
+    value == "…" || value.strip_suffix(" used").is_some_and(is_percentage)
+}
+
+fn is_weekly_usage_field(field: &str) -> bool {
+    let Some(value) = field.strip_prefix("weekly ") else {
+        return false;
+    };
+    value == "…" || is_percentage(value) || value.strip_suffix(" left").is_some_and(is_percentage)
+}
+
+fn has_responsive_usage_fields(fields: &[&str]) -> bool {
+    fields.iter().any(|field| is_context_usage_field(field))
+        && (fields.iter().any(|field| is_weekly_usage_field(field)) || fields.contains(&"…"))
+}
+
 /// Returns the model chip of a native footer line, if the line is one.
 ///
-/// A footer is recognised by its shape: a model chip first, and a working
-/// directory in some later field.
+/// A footer is recognised by its shape: a model chip first, followed by either
+/// a working directory or the structured usage fields Codex retains in its
+/// responsive narrow layout.
 pub(crate) fn footer_model(line: &str) -> Option<&str> {
     let fields = footer_fields(line);
     let [model, rest @ ..] = fields.as_slice() else {
@@ -104,13 +131,30 @@ pub(crate) fn footer_model(line: &str) -> Option<&str> {
     if !valid_model_label(model) {
         return None;
     }
-    rest.iter()
-        .any(|field| is_workdir_field(field))
+    (rest.iter().any(|field| is_workdir_field(field)) || has_responsive_usage_fields(rest))
         .then_some(*model)
 }
 
 pub(crate) fn is_known_footer(line: &str) -> bool {
     footer_model(line).is_some()
+}
+
+/// A narrow Codex footer can wrap the final `left · …` fragment onto a second
+/// terminal row. It is accepted only after a fully recognised footer start.
+pub(crate) fn is_known_footer_continuation(line: &str) -> bool {
+    matches!(line.trim(), "left · …" | "left ·…")
+}
+
+/// Codex replaces its ordinary model footer while a turn is active and the
+/// native composer contains a queued message. This exact chrome is sufficient
+/// to anchor that composer even though no model or working directory remains.
+pub(crate) fn is_codex_queue_footer(line: &str) -> bool {
+    let fields = line.split_ascii_whitespace().collect::<Vec<_>>();
+    matches!(
+        fields.as_slice(),
+        ["tab", "to", "queue", "message", percentage, "context", "left"]
+            if is_percentage(percentage)
+    )
 }
 
 /// Byte offset of the composer content on a prompt line, if the line is one.
@@ -132,7 +176,10 @@ pub(crate) fn composer_content_start(line: &str, marker: char) -> Option<usize> 
 
 #[cfg(test)]
 mod tests {
-    use super::{composer_content_start, footer_model, is_known_footer, valid_model_label};
+    use super::{
+        composer_content_start, footer_model, is_codex_queue_footer, is_known_footer,
+        is_known_footer_continuation, valid_model_label,
+    };
 
     #[test]
     fn footers_are_recognised_for_any_model_chip() {
@@ -146,6 +193,18 @@ mod tests {
             ),
             ("GPT-5.3-Codex-Spark · /repo", "GPT-5.3-Codex-Spark"),
             ("o4-mini · /repo · 12% left", "o4-mini"),
+            (
+                "gpt-5.6-sol high · agent-dashboard · Context 21% used · weekly 62%",
+                "gpt-5.6-sol high",
+            ),
+            (
+                "gpt-5.6-sol high · Context … · weekly …",
+                "gpt-5.6-sol high",
+            ),
+            (
+                "gpt-5.6-sol high · agent-dashboard · Context 43% used · …",
+                "gpt-5.6-sol high",
+            ),
         ] {
             assert_eq!(footer_model(line), Some(model), "footer: {line:?}");
         }
@@ -160,6 +219,9 @@ mod tests {
             "· /repo",
             "⚠ Heads up, you have less than 10% of your weekly limit left.",
             "emoji 🚀 model · /repo",
+            "model · Context 43% used",
+            "model · weekly 62% left",
+            "model · Context 101% used · …",
         ] {
             assert!(!is_known_footer(line), "must not be a footer: {line:?}");
         }
@@ -183,5 +245,31 @@ mod tests {
         assert_eq!(composer_content_start("❯text", '❯'), None);
         assert_eq!(composer_content_start("› run", '›'), Some("› ".len()));
         assert_eq!(composer_content_start("plain", '›'), None);
+    }
+
+    #[test]
+    fn only_the_observed_narrow_footer_tail_is_a_continuation() {
+        assert!(is_known_footer_continuation("  left · …"));
+        assert!(is_known_footer_continuation("left ·…"));
+        assert!(!is_known_footer_continuation("left"));
+        assert!(!is_known_footer_continuation("ordinary prose"));
+        assert!(!is_known_footer_continuation("weekly 62% left"));
+    }
+
+    #[test]
+    fn codex_queue_footer_requires_the_exact_working_composer_chrome() {
+        assert!(is_codex_queue_footer(
+            "  tab to queue message                  55% context left"
+        ));
+        assert!(is_codex_queue_footer(
+            "tab to queue message 0% context left"
+        ));
+        assert!(!is_codex_queue_footer("tab to queue message context left"));
+        assert!(!is_codex_queue_footer(
+            "tab to queue message 101% context left"
+        ));
+        assert!(!is_codex_queue_footer(
+            "tab to send message 55% context left"
+        ));
     }
 }

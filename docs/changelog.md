@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Support Codex CLI 0.153 responsive status lines at narrow/mobile widths,
+  including wrapped usage fields and layouts that omit the working directory.
+  Composer detection, native answer styling, and displayed status use the same
+  conservative footer rules.
+- Recognize the exact active-turn `tab to queue message` composer so an unsent
+  steer can be adopted into an empty Simple Prompts draft, edited, and sent.
+  Malformed lookalikes still fail closed, and failed adoption leaves the native
+  draft intact with a clearer return-to-Codex message.
+
 ## 0.3.0
 
 - Background task notifications no longer read as prompts you typed. Claude Code

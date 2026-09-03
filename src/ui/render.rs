@@ -177,7 +177,7 @@ fn render(
         .then(|| match app.composer_access() {
             ComposerAccess::Ready => None,
             ComposerAccess::Occupied => {
-                Some("Native composer contains unsent input · prefix+m to return")
+                Some("Native draft is preserved in Codex · prefix+m to return")
             }
             ComposerAccess::Unknown => {
                 Some("Unable to verify native composer · prefix+m to return")

@@ -5,6 +5,7 @@ use crate::composer::{NativeComposerState, classify_native_composer};
 use crate::herdr::HerdrClient;
 use crate::markdown::style_markdown;
 use crate::model::Attachment;
+use crate::native_chrome::is_known_footer;
 use crate::paste::fingerprint;
 use crate::style::MessagePresentation;
 use crate::style::StyledText;
@@ -378,13 +379,7 @@ fn complete_observation(
 ) -> Result<SourceObservation, String> {
     let ansi = read_ansi().map_err(|error| error.to_string())?;
     let surface = sanitize_ansi(&ansi);
-    let status_text = surface
-        .text
-        .lines()
-        .rev()
-        .find(|line| !line.trim().is_empty())
-        .unwrap_or_default()
-        .to_owned();
+    let status_text = observation_status_text(identity.kind, &surface.text).to_owned();
     let native_composer = classify_native_composer(identity.kind, &surface);
     let blocked_surface = (identity.status == AgentStatus::Blocked).then_some(Ok(surface));
     Ok(SourceObservation {
@@ -393,6 +388,17 @@ fn complete_observation(
         native_composer,
         blocked_surface,
     })
+}
+
+fn observation_status_text(kind: AgentKind, text: &str) -> &str {
+    let mut nonempty = text.lines().rev().filter(|line| !line.trim().is_empty());
+    match kind {
+        AgentKind::Codex => nonempty
+            .find(|line| is_known_footer(line))
+            .or_else(|| text.lines().rev().find(|line| !line.trim().is_empty())),
+        AgentKind::Claude => nonempty.next(),
+    }
+    .unwrap_or_default()
 }
 
 /// Opens the transcript, once there is one to open.
@@ -1230,6 +1236,27 @@ mod tests {
                 assert!(observation.blocked_surface.is_none());
             }
         }
+    }
+
+    #[test]
+    fn observation_uses_the_primary_row_of_a_wrapped_codex_footer() {
+        let observation = complete_observation(identity(AgentStatus::Done), || {
+            Ok(concat!(
+                "• answer\n",
+                "────────\n",
+                "› \u{1b}[2mAsk Codex to do anything\u{1b}[0m\n",
+                "gpt-5.6-sol high · agent-dashboard · Context 21% used · weekly 62%\n",
+                "  left · …",
+            )
+            .into())
+        })
+        .unwrap();
+
+        assert_eq!(
+            observation.status_text,
+            "gpt-5.6-sol high · agent-dashboard · Context 21% used · weekly 62%"
+        );
+        assert_eq!(observation.native_composer, NativeComposerState::Clear);
     }
 
     #[test]
