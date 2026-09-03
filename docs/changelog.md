@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Render user-message bands with Herdr One Light's dark text and light
+  `surface1` background instead of a dark-theme-only white-on-charcoal pair.
 - Support Codex CLI 0.153 responsive status lines at narrow/mobile widths,
   including wrapped usage fields and layouts that omit the working directory.
   Composer detection, native answer styling, and displayed status use the same

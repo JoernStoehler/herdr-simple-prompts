@@ -808,8 +808,8 @@ fn prompt_text_width(width: usize) -> usize {
 
 fn prompt_fill() -> Option<CellStyle> {
     Some(CellStyle {
-        foreground: Some(AnsiColor::BrightWhite),
-        background: Some(AnsiColor::Rgb(52, 53, 54)),
+        foreground: Some(AnsiColor::Rgb(56, 58, 66)),
+        background: Some(AnsiColor::Rgb(229, 229, 230)),
         modifiers: StyleModifiers::default(),
     })
 }

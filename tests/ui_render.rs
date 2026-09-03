@@ -63,9 +63,16 @@ fn assert_prompt_fill_cell(buffer: &Buffer, x: u16, y: u16) {
     );
     assert_eq!(
         cell.style().bg,
-        Some(Color::Rgb(52, 53, 54)),
+        Some(Color::Rgb(229, 229, 230)),
         "prompt background does not reach ({x}, {y})"
     );
+    if cell.symbol() == " " {
+        assert_eq!(
+            cell.style().fg,
+            Some(Color::Rgb(56, 58, 66)),
+            "prompt foreground does not reach ({x}, {y})"
+        );
+    }
 }
 
 #[test]
@@ -625,7 +632,7 @@ fn a_history_that_fits_leaves_the_gutters_clear() {
     let buffer = rendered_buffer(&app, 40, 20);
 
     for y in 0..20 {
-        if buffer[(0, y)].style().bg == Some(Color::Rgb(52, 53, 54)) {
+        if buffer[(0, y)].style().bg == Some(Color::Rgb(229, 229, 230)) {
             continue;
         }
         assert_clear_cell(&buffer, 39, y);
@@ -678,7 +685,7 @@ fn wrapped_prompt_rows_fill_the_full_terminal_width() {
         for column in 0..width {
             assert_eq!(
                 buffer[(column, row)].style().bg,
-                Some(Color::Rgb(52, 53, 54)),
+                Some(Color::Rgb(229, 229, 230)),
             );
         }
     }
